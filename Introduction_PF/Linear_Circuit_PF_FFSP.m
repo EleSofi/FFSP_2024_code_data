@@ -1,0 +1,215 @@
+%% definition of the linear network 
+
+X0=[0;5];  %initial condition 
+%Reaction Rates
+C=[1;5;1];
+%Stoichiometry Matrix
+S=[1 0 0; 0 1 -1];
+S_bis=[0 0 0; 1 0 1];
+N_state=200;  %hidden species state space dimension 
+n1=1;  %number of hidden species 
+n2=length(X0)-n1; %number of observed species 
+
+[State_Space] = Hidden_State(0:N_state); %construction of the hidden species 
+Shape_State_Space=size(State_Space);
+State=Shape_State_Space(1);
+[c,index]=intersect(State_Space,X0(1:n1)','rows');
+
+p0=zeros(length(State_Space),1); %initial distribution 
+p0(index)=1;
+MAK=1; %mass action kinetics parameter 
+W_star=[];
+resample=1; %resampling parameter for the particle filters
+tf=5;  %final time 
+
+%%
+[t,t_ob,delta,match,X_tot_prev,X,Y] = Gillespie_General_MAK(X0,S,S_bis,tf,C,n1,W_star,MAK);
+
+%%
+
+N_tot_1 = 1000;
+
+%%
+tic;
+[V_tot,w_tot,V_jump,w_jump,match_1,match_2,resampling,pt_1,E_pf,Var_pf,SD_pf] = particle_filter_1(t_ob,Y,p0,C,tf,N_tot_1,State_Space,S,S_bis,resample,n1,W_star,MAK);
+time_1=toc;
+
+%% 
+N_tot_2=80000;
+
+%%
+tic;
+[V_tot_2,w_tot_2,V_jump_2,w_jump_2,match_1_2,match_2_2,resampling_2,pt_2,E_pf_2,Var_pf_2,SD_pf_2] = particle_filter_1(t_ob,Y,p0,C,tf,N_tot_2,State_Space,S,S_bis,resample,n1,W_star,MAK);
+time_2=toc;
+
+%%
+N_tot_3=1000000;
+
+%%
+tic;
+[V_tot_3,w_tot_3,V_jump_3,w_jump_3,match_1_3,match_2_3,resampling_3,pt_3,E_pf_3,Var_pf_3,SD_pf_3] = particle_filter_1(t_ob,Y,p0,C,tf,N_tot_3,State_Space,S,S_bis,resample,n1,W_star,MAK);
+time_3=toc;
+%% exact conditional distribution 
+tm=3;
+lambda=Poisson_Rate(tm,t_ob,Y(end,:),C(1));
+u=@(x)(lambda.^(x)*exp(-lambda))./factorial(x);
+t_indices=find(t_ob < tm);
+
+%% relative errors 
+end_state=45;
+Rel_1=(abs(pt_1(1:end_state,t_indices(end)+1)-u(State_Space(1:end_state))))./u(State_Space(1:end_state));
+Rel_2=(abs(pt_2(1:end_state,t_indices(end)+1)-u(State_Space(1:end_state))))./u(State_Space(1:end_state));
+Rel_3=(abs(pt_3(1:end_state,t_indices(end)+1)-u(State_Space(1:end_state))))./u(State_Space(1:end_state));
+%% saving the results
+save('particle_filters_different_N_estimations.mat', 'pt_1', 'pt_2', 'pt_3', 'Rel_1', 'Rel_2', 'Rel_3', 'time_1', 'time_2','time_3', 'E_pf','SD_pf', 'E_pf_2','SD_pf_2', 'E_pf_3','SD_pf_3','t_ob','tm','Y')
+
+%% plotting 
+f = figure;
+f.Units = 'points';
+% Significantly increase the figure size for larger square subplots
+f.OuterPosition = [10 10 1800 600]; % Adjusted for an even larger figure
+
+
+
+% Plot 1: Conditional Probability
+subplot(1,3,1);
+plot(State_Space(1:end_state), u(State_Space(1:end_state)), 'b', 'LineWidth', 5);
+hold on;
+plot(State_Space(1:end_state), pt_1(1:end_state, t_indices(end) + 1), 'Color', [0.9290 0.6940 0.1250], 'LineWidth', 3);
+hold off;
+title('Conditional Probability');
+xlabel('Hidden Process Copy Number');
+xlim([0 end_state]);
+lg1 = legend('Exact', 'BPF N_{tot}=1000'); % Create legend and store its handle
+set(gca, 'FontSize', 20);
+axis square; % Ensure the subplot is square
+set(lg1, 'FontSize', 14); % Decrease legend font size for the first subplot
+
+% Plot 2: Relative Error
+subplot(1,3,2);
+semilogy(State_Space(1:end_state), Rel_1(1:end_state), 'Color', [0.9290 0.6940 0.1250], 'LineWidth', 3);
+hold on;
+semilogy(State_Space(1:end_state), Rel_2(1:end_state), 'r', 'LineWidth', 3);
+semilogy(State_Space(1:end_state), Rel_3(1:end_state), 'c', 'LineWidth', 3);
+hold off;
+title('Relative Error');
+xlabel('Hidden Process Copy Number');
+yticks([10^(-5) 10^(-4) 10^(-3) 10^(-2) 10^(-1) 10^(0)]);
+xlim([0 end_state]);
+lg2 = legend('BPF N=10^3', 'BPF N=8x10^4', 'BPF N=10^6'); % Update legend
+set(gca, 'FontSize', 20);
+axis square; % Ensure the subplot is square
+set(lg2, 'FontSize', 14); % Decrease legend font size for the second subplot
+
+% Plot 3: Computational Time with Adjusted Bar Plot
+subplot(1,3,3);
+bar([1, 2, 3], [time_1, time_2, time_3]);
+set(gca, 'YScale', 'log'); % Use log scale for y-axis
+title('Computational Time');
+xlabel('Particle Sizes');
+ylabel('Time (s)');
+set(gca, 'FontSize', 20);
+axis square; % Ensure the subplot is square
+set(gca, 'xtick', [1, 2, 3], 'xticklabel', {'N=10^3', 'N=8x10^4', 'N=10^6'});
+
+
+%% Create stairs plot
+% Create figure and stairs plot
+figure;
+stairs(t_ob, Y, 'b', 'LineWidth', 3);
+title('Observation Trajectory');
+xlabel('Time (s)');
+xlim([0 t_ob(end)]);
+ylim([0 7]); % Ensure the y-axis starts from 1
+legend('mRNA SSA Trajectory');
+set(gca, 'FontSize', 25);
+axis square; % Ensure the subplot is square
+
+% % Get current axes
+% ax = gca;
+% 
+% % Set custom axis ticks
+% ax.XTick = [0 1 2 3 4 5];
+% ax.YTick = [1 2 3 4 5 6 7];
+% 
+% % Manually set the tick labels
+% x_labels = {'0', '1', '2', '3', '4', '5'};
+% y_labels = {'', '2', '3', '4', '5', '6', '7'}; % Empty string for 1 at the origin
+% 
+% % Apply the customized labels
+% ax.XTickLabel = x_labels;
+% ax.YTickLabel = y_labels;
+% 
+% % Double check that labels are set correctly
+% disp(ax.XTickLabel);
+% disp(ax.YTickLabel);
+%% 
+
+% Create the figure
+f = figure;
+f.Units = 'normalized';
+f.OuterPosition = [0 0 0.85 0.85]; % Increase overall figure size slightly
+
+% Create stairs plot in the center of the first row
+subplot('Position', [0.375, 0.6, 0.25, 0.4]); % Adjust to equal size as other subplots and center
+stairs(t_ob, Y, 'b', 'LineWidth', 3);
+title('Observation Trajectory');
+%xlabel('Time (s)');
+xlim([0 t_ob(end)]);
+ylim([min(Y) max(Y)]); % Ensure the y-axis starts from min(Y)
+legend('M SSA Trajectory');
+set(gca, 'FontSize', 25);
+axis square; % Ensure the subplot is square
+
+end_state = 35;
+
+% Plot 1: Conditional Probability
+subplot('Position', [0.1, 0.1, 0.25, 0.4]); % Maintain subplot height and center
+plot(State_Space(1:end_state), u(1:end_state), 'b', 'LineWidth', 5);
+hold on;
+plot(State_Space(1:end_state), pt_1(1:end_state, t_indices(end) + 1), 'Color', [0.9290 0.6940 0.1250], 'LineWidth', 3);
+hold off;
+%title('Conditional Probability');
+%xlabel('Hidden Process Copy Number');
+xlim([0 end_state]);
+lg1 = legend('Exact', 'BPF N=10^3'); % Create legend and store its handle
+set(gca, 'FontSize', 20);
+axis square; % Ensure the subplot is square
+set(lg1, 'FontSize', 20); % Decrease legend font size for the first subplot
+
+% Plot 2: Relative Error
+subplot('Position', [0.375, 0.1, 0.25, 0.4]); % Adjust position to reduce horizontal spacing
+semilogy(State_Space(1:end_state), Rel_1(1:end_state), 'Color', [0.9290 0.6940 0.1250], 'LineWidth', 3);
+hold on;
+semilogy(State_Space(1:end_state), Rel_2(1:end_state), 'r', 'LineWidth', 3);
+semilogy(State_Space(1:end_state), Rel_3(1:end_state), 'c', 'LineWidth', 3);
+hold off;
+%title('Relative Error');
+%xlabel('Hidden Process Copy Number');
+yticks([10^(-5) 10^(-4) 10^(-3) 10^(-2) 10^(-1) 10^(0) 10^(1)]);
+xlim([0 end_state]);
+lg2 = legend('BPF N=10^3', 'BPF N=8x10^4', 'BPF N=10^6'); % Update legend
+set(gca, 'FontSize', 20);
+axis square; % Ensure the subplot is square
+set(lg2, 'FontSize', 20); % Decrease legend font size for the second subplot
+
+% Plot 3: Computational Time with Adjusted Bar Plot
+subplot('Position', [0.65, 0.1, 0.25, 0.4]); % Adjust position to reduce horizontal spacing
+b = bar([1, 2, 3], [time_1, time_2, time_3]);
+b.FaceColor = 'flat'; % Enable custom coloring for bars
+b.CData(1, :) = [0 0.4470 0.7410]; % Color for N=10^3
+b.CData(2, :) = [0.8500 0.3250 0.0980]; % Color for N=8x10^4
+b.CData(3, :) = [0.9290 0.6940 0.1250]; % Color for N=10^6
+set(gca, 'YScale', 'log'); % Use log scale for y-axis
+%title('Computational Time');
+%xlabel('Particle Sizes');
+%ylabel('Time (s)');
+set(gca, 'FontSize', 20);
+axis square; % Ensure the subplot is square
+set(gca, 'xticklabel', []); % Remove x-tick labels
+
+% Add text labels on top of each bar
+text(1, time_1, 'N=10^3', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'center', 'FontSize', 15);
+text(2, time_2, 'N=8x10^4', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'center', 'FontSize', 15);
+text(3, time_3, 'N=10^6', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'center', 'FontSize', 15);
+
