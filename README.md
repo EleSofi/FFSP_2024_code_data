@@ -16,6 +16,14 @@ These subfolders contain the code for the examples presented in the introduction
 
 Each folder contains a README file to assist you in navigating the code unless the structure is straightforward, in which case a README may not be present.
 
-Enjoy exploring the code!
+## License
+
+This project is licensed under the terms of the [GNU General Public License v3.0](LICENSE.txt) - see the `LICENSE.txt` file for details.
+
+### Summary
+
+This software is free and open-source under the GNU General Public License v3.0. You are free to use, modify, and distribute this software, provided that any derivative works you distribute are also licensed under the GPL. This ensures that this software and any modifications remain free for all users.
+
+For more information, you can read the full license text in the `LICENSE.txt` file included in this repository.
 
 ---
