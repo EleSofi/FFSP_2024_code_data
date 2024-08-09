@@ -27,3 +27,8 @@ This software is free and open-source under the GNU General Public License v3.0.
 
 For more information, you can read the full license text in the `LICENSE.txt` file included in this repository.
 
+## Zenodo Repository
+
+The full release of this project, including source code and data, is archived on Zenodo. You can access it via the following link:
+
+[Access the Zenodo repository](https://zenodo.org/records/13285372)
