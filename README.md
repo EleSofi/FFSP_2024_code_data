@@ -26,4 +26,3 @@ This software is free and open-source under the GNU General Public License v3.0.
 
 For more information, you can read the full license text in the `LICENSE.txt` file included in this repository.
 
----
