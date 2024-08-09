@@ -2,6 +2,7 @@
 ---
 
 # FFSP_2024_code_data
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13285372.svg)](https://doi.org/10.5281/zenodo.13285372)
 
 This repository contains all the code used for the simulations and the data used for validation. For any questions, feel free to email Elena D'Ambrosio at [elena.dambrosio@bsse.ethz.ch](mailto:elena.dambrosio@bsse.ethz.ch). Have a great day!
 
